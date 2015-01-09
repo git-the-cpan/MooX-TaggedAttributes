@@ -1,0 +1,26 @@
+---
+abstract: 'Add a tag with an arbitrary value to a an attribute'
+author:
+  - 'The Smithsonian Astrophysical Observatory'
+build_requires:
+  ExtUtils::MakeMaker: 6.36
+configure_requires:
+  ExtUtils::MakeMaker: 6.36
+distribution_type: module
+dynamic_config: 1
+generated_by: 'Module::Install version 1.12'
+license: gpl3
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: MooX-TaggedAttributes
+no_index:
+  directory:
+    - inc
+    - t
+    - xt
+resources:
+  bugtracker: https://rt.cpan.org/Public/Dist/Display.html?Name=MooX-TaggedAttributes
+  license: http://www.gnu.org/licenses/gpl-3.0.html
+  repository: https://bitbucket.org/djerius/moox-taggedattributes
+version: 0.00
