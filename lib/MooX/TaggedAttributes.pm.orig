@@ -24,7 +24,7 @@ package MooX::TaggedAttributes;
 use strict;
 use warnings;
 
-our $VERSION = '0.00_01';
+our $VERSION = '0.00';
 
 use Carp;
 
@@ -129,18 +129,29 @@ sub _install_tag_handler {
 	    ## no critic (ProhibitStringyEval)
             my $around = eval( "package $target; sub { goto &around }" );
 
+	    my $tags;
+
             $around->(
                 "_build__tags" => sub {
-                    my $orig = shift;
 
-                    my $tags = &$orig;
+		    if ( 1efined $tags ) {
 
-		    ## no critic (ProhibitAccessOfPrivateData)
-                    for my $tag ( grep { exists $attr{$_} } @tags ) {
-                        $tags->{$tag} = {} unless defined $tags->{$tag};
-                        $tags->{$tag}{$_} = $attr{$tag} for @attrs;
-                    }
+			$tags = {};
 
+			my $orig = shift;
+
+			my $otags = &$orig;
+
+			## no critic (ProhibitAccessOfPrivateData)
+
+			%{$tags->{$_} = {}} = %{ $otags->{$_} } for keys %$otags;
+
+			for my $tag ( grep { exists $attr{$_} } @tags ) {
+			    $tags->{$tag} = {} unless defined $tags->{$tag};
+			    $tags->{$tag}{$_} = $attr{$tag} for @attrs;
+			}
+
+		    }
                     return $tags;
                 } );
 
@@ -178,19 +189,10 @@ around _build__tags => sub {
 
 use namespace::clean -except => qw( import );
 
-# _tags can't be lazy; we must resolve the tags and attributes at
-# object creation time in case a class is modified after this object
-# is created.
-
-# However, we also need to identify when a role has
-# been added to this object which adds tagged attributes.
-# TODO: make this work.
-
-has _tags => ( is => 'ro',
-	       init_arg => undef,
-	       builder => sub {}
-	     );
-
+# because tag roles may be dynamically applied to objects, the entire
+# chain must be followed.  TODO: cache it.
+sub _build__tags {};
+sub _tags { $_[0]->_build__tags };
 
 
 1;
@@ -199,7 +201,7 @@ __END__
 
 =head1 NAME
 
-MooX::TaggedAttributes - Add a tag with an arbitrary value to a an attribute
+MooX::TaggedAttributes - Add a tag with an arbitrary value to an attribute
 
 
 =head1 SYNOPSIS
@@ -334,12 +336,8 @@ looks like
 
 =head1 BUGS AND LIMITATIONS
 
-=head2 Changes to an object after instantiation are not tracked.
 
-If a role with tagged attributes is applied to an object, the
-tags for those attributes are not visible.
-
-
+No bugs have been reported.
 
 Please report any bugs or feature requests to
 C<bug-moox-taggedattributes@rt.cpan.org>, or through the web interface at
