@@ -24,19 +24,18 @@ package MooX::TaggedAttributes;
 use strict;
 use warnings;
 
-our $VERSION = '0.00_01';
+our $VERSION = '0.00_03';
 
 use Carp;
 
 use Moo::Role;
 
+use Scalar::Util qw[ blessed ];
 use Class::Method::Modifiers qw[ install_modifier ];
 
 our %TAGSTORE;
 
-my %ARGS = (
-    -tags  => [],
-);
+my %ARGS = ( -tags => [] );
 
 sub import {
 
@@ -75,16 +74,15 @@ sub _install_role_import {
     ## no critic (ProhibitNoStrict)
     no strict 'refs';
     no warnings 'redefine';
-    *{"${target}::import"} =
-      sub {
+    *{"${target}::import"} = sub {
 
-        my $class = shift;
+        my $class  = shift;
         my $target = caller;
 
         Moo::Role->apply_roles_to_package( $target, $class );
 
         _install_tags( $target, $TAGSTORE{$class} );
-      };
+    };
 
 }
 
@@ -126,22 +124,25 @@ sub _install_tag_handler {
             #  1) use the target package's around() function, and
             #  2) call it in that package's context.
 
-	    ## no critic (ProhibitStringyEval)
+            ## no critic (ProhibitStringyEval)
             my $around = eval( "package $target; sub { goto &around }" );
 
             $around->(
-                "_build__tags" => sub {
+                "_build__tag_cache" => sub {
                     my $orig = shift;
 
-                    my $tags = &$orig;
+                    my $cache = &$orig;
 
 		    ## no critic (ProhibitAccessOfPrivateData)
                     for my $tag ( grep { exists $attr{$_} } @tags ) {
-                        $tags->{$tag} = {} unless defined $tags->{$tag};
-                        $tags->{$tag}{$_} = $attr{$tag} for @attrs;
+
+                        $cache->{$tag} ||= {};
+                        $cache->{$tag}{$_} = $attr{$tag} for @attrs;
+
                     }
 
-                    return $tags;
+                    return $cache;
+
                 } );
 
         } );
@@ -154,7 +155,7 @@ my $can = sub { ( shift )->next::can };
 
 # need this to handle composition on top of inheritance
 # see http://www.nntp.perl.org/group/perl.moose/2015/01/msg287{6,7,8}.html
-around _build__tags => sub {
+around _build__tag_cache => sub {
 
     # at this point, execution is at the bottom of the stack
     # of wrapped calls for the immediate composing class.
@@ -170,9 +171,26 @@ around _build__tags => sub {
     my $orig    = shift;
     my $package = caller;
 
-    my $next = ( subname "${package}::_build__tags" => $can )->( $_[0] );
+    my $next = ( subname "${package}::_build__tag_cache" => $can )->( $_[0] );
 
-    return $next ? $next->( @_ ) : &$orig;
+    my $cache1 = &$orig;
+
+    return $cache1 unless $next;
+
+    my $cache2 = &$next;
+
+    for my $tag ( keys %$cache2 ) {
+
+	## no critic (ProhibitAccessOfPrivateData)
+        my $attrs = $cache2->{$tag};
+
+        $cache1->{$tag} ||= {};
+        $cache1->{$tag}{$_} = $attrs->{$_} for keys %$attrs;
+
+    }
+
+    return $cache1;
+
 };
 
 
@@ -186,12 +204,12 @@ use namespace::clean -except => qw( import );
 # been added to this object which adds tagged attributes.
 # TODO: make this work.
 
-has _tags => ( is => 'ro',
-	       init_arg => undef,
-	       builder => sub {}
-	     );
+has _tag_cache => (
+    is       => 'ro',
+    init_arg => undef,
+    builder  => sub { {} } );
 
-
+sub _tags { blessed( $_[0] ) ? $_[0]->_tag_cache : $_[0]->_build__tag_cache }
 
 1;
 
@@ -307,9 +325,9 @@ Combining tag roles is as simple as B<use>'ing them in the new role:
 
 =head2 Accessing tags
 
-Objects are provided a B<_tags> method which returns a hash of hashes
-keyed off of the tags and attribute names.  For example, for the
-following code:
+Classes and objects are provided a B<_tags> method which returns a
+hash of hashes keyed off of the tags and attribute names.  For
+example, for the following code:
 
     package T;
     use Moo::Role;
@@ -322,8 +340,9 @@ following code:
     has a => ( is => 'ro', t1 => 2 );
     has b => ( is => 'ro', t2 => 'foo' );
 
-The tag structure returned by
+The tag structure returned by either of the following
 
+    C->_tags
     C->new->_tags
 
 looks like

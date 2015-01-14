@@ -17,7 +17,6 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/MooX/TaggedAttributes.pm
-lib/MooX/TaggedAttributes.pm.orig
 LICENSE
 Makefile.PL
 MANIFEST			This list of files
@@ -30,7 +29,7 @@ t/class.t
 t/class_inherited.t
 t/class_multi_tags.t
 t/class_role.t
-t/late_role.t
+t/class_role_inherited.t
 t/late_role_to_class.t
 t/late_role_to_object.t
 t/multi_tags.t

@@ -49,6 +49,7 @@
          "requires" : {
             "Class::Method::Modifiers" : "0",
             "Moo" : "0",
+            "Scalar::Util" : "0",
             "Sub::Name" : "0",
             "namespace::clean" : "0"
          }
@@ -72,5 +73,5 @@
          "url" : "https://bitbucket.org/djerius/moox-taggedattributes"
       }
    },
-   "version" : "0.00_01"
+   "version" : "0.00_03"
 }
