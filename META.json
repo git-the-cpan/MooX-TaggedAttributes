@@ -4,7 +4,7 @@
       "The Smithsonian Astrophysical Observatory"
    ],
    "dynamic_config" : "0",
-   "generated_by" : "Module::Install version 1.12, CPAN::Meta::Converter version 2.142060",
+   "generated_by" : "Module::Install version 1.14, CPAN::Meta::Converter version 2.143240",
    "license" : [
       "unknown"
    ],
@@ -39,6 +39,7 @@
             "Module::Install::AuthorTests" : "0",
             "Module::Install::AutoLicense" : "0",
             "Module::Install::CPANfile" : "0",
+            "Test::CPAN::Changes" : "0",
             "Test::NoBreakpoints" : "0",
             "Test::Perl::Critic" : "0",
             "Test::Pod" : "0",
@@ -57,11 +58,12 @@
       "test" : {
          "requires" : {
             "Test::Deep" : "0",
+            "Test::Lib" : "0",
             "Test::More" : "0"
          }
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "https://rt.cpan.org/Public/Dist/Display.html?Name=MooX-TaggedAttributes"
@@ -73,5 +75,5 @@
          "url" : "https://bitbucket.org/djerius/moox-taggedattributes"
       }
    },
-   "version" : "0.00_03"
+   "version" : "0.01"
 }

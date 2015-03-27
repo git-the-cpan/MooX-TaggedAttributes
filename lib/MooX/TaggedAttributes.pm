@@ -24,7 +24,7 @@ package MooX::TaggedAttributes;
 use strict;
 use warnings;
 
-our $VERSION = '0.00_03';
+our $VERSION = '0.01';
 
 use Carp;
 
@@ -34,6 +34,7 @@ use Scalar::Util qw[ blessed ];
 use Class::Method::Modifiers qw[ install_modifier ];
 
 our %TAGSTORE;
+our %TAGCACHE;
 
 my %ARGS = ( -tags => [] );
 
@@ -114,7 +115,7 @@ sub _install_tag_handler {
         after => has => sub {
             my ( $attrs, %attr ) = @_;
 
-            my @attrs = ref $attrs ? @$attrs : $attrs;
+            $attrs = ref $attrs ? $attrs : [$attrs];
 
             my $target = caller;
 
@@ -128,20 +129,15 @@ sub _install_tag_handler {
             my $around = eval( "package $target; sub { goto &around }" );
 
             $around->(
-                "_build__tag_cache" => sub {
+                "_tag_list" => sub {
                     my $orig = shift;
 
-                    my $cache = &$orig;
-
-		    ## no critic (ProhibitAccessOfPrivateData)
-                    for my $tag ( grep { exists $attr{$_} } @tags ) {
-
-                        $cache->{$tag} ||= {};
-                        $cache->{$tag}{$_} = $attr{$tag} for @attrs;
-
-                    }
-
-                    return $cache;
+                    ## no critic (ProhibitAccessOfPrivateData)
+                    return [
+                        @{&$orig},
+                        map { [ $_, $attrs, $attr{$_} ] }
+                          grep { exists $attr{$_} } @tags,
+                    ];
 
                 } );
 
@@ -153,63 +149,76 @@ use Sub::Name 'subname';
 
 my $can = sub { ( shift )->next::can };
 
-# need this to handle composition on top of inheritance
-# see http://www.nntp.perl.org/group/perl.moose/2015/01/msg287{6,7,8}.html
-around _build__tag_cache => sub {
+# this modifier is run once for each composition of a tag role into
+# the class.  role composition is orthogonal to class inheritance, so we
+# need to carefully handle both
 
-    # at this point, execution is at the bottom of the stack
-    # of wrapped calls for the immediate composing class.
+# see http://www.nntp.perl.org/group/perl.moose/2015/01/msg287{6,7,8}.html,
+# but note that djerius' published solution was incomplete.
+around _tag_list => sub {
 
-    # use the calling package as the starting point for the search up
-    # the inheritance chain.  as this routine gets called from
-    # different points, that'll change.
+    # 1. call &$orig to handle tag role compositions into the current
+    #    class
 
-    # only run the original method when we've reached the very
-    # end of the inheritance chain.  otherwise it will get run
-    # for each class (as we bottom out here) which is incorrect.
+    # 2. call up the inheritance stack to handle parent class tag role
+    #    compositions.
 
     my $orig    = shift;
     my $package = caller;
 
-    my $next = ( subname "${package}::_build__tag_cache" => $can )->( $_[0] );
+    # create the proper environment context for next::can
+    my $next = ( subname "${package}::_tag_list" => $can )->( $_[0] );
 
-    my $cache1 = &$orig;
-
-    return $cache1 unless $next;
-
-    my $cache2 = &$next;
-
-    for my $tag ( keys %$cache2 ) {
-
-	## no critic (ProhibitAccessOfPrivateData)
-        my $attrs = $cache2->{$tag};
-
-        $cache1->{$tag} ||= {};
-        $cache1->{$tag}{$_} = $attrs->{$_} for keys %$attrs;
-
-    }
-
-    return $cache1;
-
+    return [ @{&$orig}, $next ? @{&$next} : () ];
 };
 
 
 use namespace::clean -except => qw( import );
 
 # _tags can't be lazy; we must resolve the tags and attributes at
-# object creation time in case a class is modified after this object
-# is created.
+# object creation time in case a role is modified after this object
+# is created, as we scan both clsses and roles to gather the tags.
+# classes are immutable after the first instantiation
+# of an object, but roles aren't.
 
-# However, we also need to identify when a role has
-# been added to this object which adds tagged attributes.
-# TODO: make this work.
+# We also need to identify when a role has been added to an *object*
+# which adds tagged attributes.  TODO: make this work.
+
+sub _tag_list { [] }
+
+
+# Build the tag cache.  Only update it if we're an object.  if the
+# class hasn't yet been instantiated, it's still mutable, and we'd be
+# caching prematurely.
+
+sub _build_cache {
+
+    my $class = shift;
+
+    # returned cached tags if available.
+    return $TAGCACHE{$class} if $TAGCACHE{$class};
+
+    my %cache;
+
+    for my $tuple ( @{ $class->_tag_list } ) {
+        # my ( $tag, $attrs, $value ) = @$tuple;
+        my $cache = ( $cache{ $tuple->[0] } ||= {} );
+        $cache->{$_} = $tuple->[2] for @{ $tuple->[1] };
+    }
+
+    return \%cache;
+}
 
 has _tag_cache => (
     is       => 'ro',
     init_arg => undef,
-    builder  => sub { {} } );
+    default  => sub {
+	my $class = blessed( $_[0] );
+	return $TAGCACHE{$class} ||= $class->_build_cache;
+    }
+);
 
-sub _tags { blessed( $_[0] ) ? $_[0]->_tag_cache : $_[0]->_build__tag_cache }
+sub _tags { blessed( $_[0] ) ? $_[0]->_tag_cache : $_[0]->_build_cache }
 
 1;
 
@@ -379,10 +388,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see L<http://www.gnu.org/licenses/>.
 
 =head1 AUTHOR
 
 Diab Jerius  E<lt>djerius@cpan.orgE<gt>
-
-

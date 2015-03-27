@@ -5,12 +5,13 @@ author:
 build_requires:
   ExtUtils::MakeMaker: '6.36'
   Test::Deep: '0'
+  Test::Lib: '0'
   Test::More: '0'
 configure_requires:
   CPAN::Meta: '0'
   ExtUtils::MakeMaker: '6.36'
 dynamic_config: '0'
-generated_by: 'Module::Install version 1.12, CPAN::Meta::Converter version 2.142060'
+generated_by: 'Module::Install version 1.14, CPAN::Meta::Converter version 2.143240'
 license: unknown
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -31,4 +32,4 @@ resources:
   bugtracker: https://rt.cpan.org/Public/Dist/Display.html?Name=MooX-TaggedAttributes
   license: http://www.gnu.org/licenses/gpl-3.0.html
   repository: https://bitbucket.org/djerius/moox-taggedattributes
-version: 0.00_03
+version: '0.01'
